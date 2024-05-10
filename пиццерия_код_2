@@ -1,0 +1,419 @@
+import time
+import asyncio
+from abc import ABC, abstractmethod
+from threading import Thread
+from time import sleep
+from tkinter import *
+import sqlite3
+
+
+window = Tk()
+window.title("Пиццерия")
+window.geometry('500x450')
+
+def label(window, text, column, row):
+    lbl = Label(window, text=text)
+    lbl.grid(column=column, row=row, padx=5, pady=5)
+    return lbl
+
+def click_button(window, text, column, row, command):
+    btn = Button(window, text=text, command=command)
+    btn.grid(column=column, row=row, padx=5, pady=5)
+    return btn
+
+def entry_widget(window, column, row, width):
+    txt = Entry(window, width=width)
+    txt.grid(column=column, row=row, padx=5, pady=5)
+    return txt
+
+def frame_clear(frame):
+    for widget in frame.winfo_children():
+        widget.destroy()
+
+
+class MyError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return "Неверное значение!"
+
+
+class Pizzeria:
+    def __init__(self, name='name', dough='dough', sauce='sous', ingredient='ingred', price=10):
+        self.__name = name
+        self.dough = dough
+        self.sauce = sauce
+        self.price = price
+        self.ingredient = ingredient
+        # конструктор класса пиццы
+
+    def __str__(self):  # перегрузка базового метода str
+        return f'Пицца: {self.__name}, соус: {self.dough}, ингредиент: {self.ingredient}, цена: {self.price} руб.'
+
+    @abstractmethod
+    def done(self):
+        print('Готово!', end='')
+
+    @property  # функция-геттер для приватного атрибута name
+    def name(self):
+        return self.__name
+
+
+    # Приготовление пиццы
+    @staticmethod
+    def get_ready():
+         return('Начали готовить пиццу...')
+
+
+    @staticmethod
+    def baking():
+        return("Пицца отправлена в печь")
+
+    @staticmethod
+    def packing():
+        return ('Пицца готова!')
+
+
+async def souse():
+    print('Смешиваются ингредиенты для соуса...')
+    await asyncio.sleep(3)
+    print('Соус готов!')
+
+
+async def vegetab():
+    print('Нарезаются овощи для начинки...' )
+    await asyncio.sleep(3)
+    print('Ингредиенты добавлены!')
+
+
+async def main():
+    task1 = asyncio.create_task(souse())
+    task2 = asyncio.create_task(vegetab())
+
+    await task1
+    await task2
+
+
+
+def testo():
+    print("Начали замешивать тесто...")
+    sleep(2)
+    print('Тесто замесилось!')
+
+def prib():
+    print('Начали упаковывать приборы...')
+    sleep(2)
+    print('Приборы упакованы!')
+
+
+
+
+
+class Pepperoni(Pizzeria):  # дочерние классы класса пиццы (разновидности пицц)
+    def __init__(self):
+        super().__init__("Пепперони")
+        self.__name = 'Пепперони'
+        self.dough = "тонкое"
+        self.sauce = "томатный"
+        self.ingredient = "колбаса"
+        self.price = 100
+        # Дочерний класс "Пепперони"
+
+    def done(self):
+        super().done()
+        print('Пицца Пепперони выдана!')
+
+
+P = Pepperoni()
+
+
+class Barbeque(Pizzeria):
+    def __init__(self):
+        super().__init__("Барбекю")
+        self.__name = 'Барбекю'
+        self.dough = "тонкое"
+        self.sauce = "барбекю"
+        self.ingredient = 'курица'
+        self.price = 200
+        # Дочерний класс "Барбекю"
+
+    def done(self):
+        super().done()
+        print('Пицца Барбекю выдана!')
+
+
+B = Barbeque()
+
+
+class Marine(Pizzeria):
+    def __init__(self):
+        super().__init__('Дары моря')
+        self.__name = 'Дары моря'
+        self.dough = "толстое"
+        self.sauce = "сливочный"
+        self.ingredient = "морепродукты"
+        self.price = 300
+        # Дочерний класс "Дары моря"
+
+    def done(self):
+        super().done()
+        print('Пицца Дары моря выдана!')
+
+
+M = Marine()
+
+
+class Zakaz:
+    count = 0
+    B = Barbeque()
+    P = Pepperoni()
+    M = Marine()
+
+    def __init__(self):  # конструктор класса
+        self.pizzainZ = []
+        Zakaz.count += 1
+
+    connection = sqlite3.connect('ord.db')
+    # создать курсор для выполнения запросов
+    cursor = connection.cursor()
+
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ord(
+           price TEXT,
+           name TEXT,
+           souse TEXT,
+           ingredient TEXT);
+        """)
+    connection.commit()
+    cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+               VALUES('Цена', 'Название', 'Соус', 'Ингредиент');""")
+    connection.commit()
+
+
+    def __str__(self):
+        sum = 0
+        print('Заказ N', Zakaz.count)
+        for i in range(len(self.pizzainZ)):
+            if self.pizzainZ[i] == 'P':
+                print(P.__str__())
+                sum = int(P.price) + sum
+            if self.pizzainZ[i] == 'B':
+                print(B.__str__())
+                sum = int(B.price) + sum
+            if self.pizzainZ[i] == 'M':
+                print(M.__str__())
+                sum = int(M.price) + sum
+        print("Сумма заказа:", sum, 'руб')
+        return ''
+
+    def add(self, numberofpizza):  # список заказнных пользователем пицц
+        self.numberofpizza = numberofpizza
+        if numberofpizza == 1:
+            self.pizzainZ.append('P')
+
+            Zakaz.cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+                       VALUES('100', 'Пеперонни', 'Томатный', 'Колбаса');""")
+            Zakaz.connection.commit()
+
+
+        if numberofpizza == 2:
+            self.pizzainZ.append('B')
+
+            Zakaz.cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+                                   VALUES('200', 'Барбекю', 'Барбекю', 'Курица');""")
+            Zakaz.connection.commit()
+
+
+        if numberofpizza == 3:
+            self.pizzainZ.append('M')
+
+            Zakaz.cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+                                   VALUES('300', 'Дары Моря', 'Сливочный', 'Морепродукты');""")
+            Zakaz.connection.commit()
+
+
+    def zsum(self):  # Подсчет суммы заказанной пиццы
+        summ = 0
+        for i in range(len(self.pizzainZ)):
+            if self.pizzainZ[i] == 'P':
+                summ = int(P.price) + summ
+            if self.pizzainZ[i] == 'B':
+                summ += int(B.price)
+            if self.pizzainZ[i] == 'M':
+                summ = int(M.price) + summ
+        return summ
+
+
+    def do(self):  # функция выполнения заказа
+        print('Заказ поступил на выполнение')
+        time.sleep(1)
+        for i in range(len(self.pizzainZ)):
+            if self.pizzainZ[i] == 'P' or self.pizzainZ[i] == 'M' or self.pizzainZ[i] == 'B':
+
+                print(P.get_ready())
+                time.sleep(0.5)
+
+                # создаем два новых потока
+                t1 = Thread(target=testo)
+                t2 = Thread(target=prib)
+
+                # запускаем потоки
+                t1.start()
+                t2.start()
+
+                # ждем, когда потоки выполнятся
+                t1.join()
+                t2.join()
+
+                asyncio.run(main())
+
+                print(P.packing())
+
+
+Z = Zakaz()
+
+
+
+korz=[]
+not_menu_labels = []
+def korzina():
+    global korz
+    global not_menu_labels
+    i=1
+    for pizza in korz:
+        lbl = label(window, f"{i}. {pizza}", i+2, 3)
+        not_menu_labels.append(lbl)
+        i+=1
+op=0
+def clear_labels():
+    global not_menu_labels
+    for i in not_menu_labels:
+        i.destroy()
+def oplata():
+    global op
+    global korz
+    for i in range(len(korz)):
+        if korz[i]=="Пепперони":
+
+            Zakaz.cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+                                   VALUES('100', 'Пеперонни', 'Томатный', 'Колбаса');""")
+            Zakaz.connection.commit()
+
+            op+=100
+        if korz[i]=="Барбекю":
+            op+=200
+            Zakaz.cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+                                                           VALUES('200', 'Барбекю', 'Барбекю', 'Курица');""")
+            Zakaz.connection.commit()
+        if korz[i]=="Дары моря":
+            op+=300
+            Zakaz.cursor.execute("""INSERT INTO ord(price, name, souse, ingredient) 
+                                                           VALUES('300', 'Дары Моря', 'Сливочный', 'Морепродукты');""")
+            Zakaz.connection.commit()
+    if op>0:
+        frame_clear(window)
+        Label(text=f"Происходит оплата заказа на сумму {op} рублей...").pack()
+        def another_order():
+            global op
+            global korz
+            op=0
+            korz=[]
+            view_menu()
+        window.after(2000, lambda: frame_clear(window))
+        window.after(2000, lambda: Label(text="Заказ оплачен!").pack())
+        window.after(3000, lambda: frame_clear(window))
+        window.after(3000, lambda: Button(text="Сделать ещё заказ", command=another_order).pack())
+        window.after(3000, lambda: Button(text="Выйти", command=exit).pack())
+
+def menu():
+    clear_labels()
+    global not_menu_labels
+    lbl1=label(window, '1. Пепперони,цена: 100 руб.', 1, 2)
+    lbl2=label(window, '2. Барбекю, цена: 200 руб.', 1, 3)
+    lbl3=label(window, '3. Дары моря, цена: 300 руб.', 1, 4)
+    for i in [lbl1, lbl2, lbl3]:
+        not_menu_labels.append(i)
+
+def zakaz():
+    global not_menu_labels
+    clear_labels()
+    global korz
+    def add(num):
+        try:
+            num=int(num)
+            if num==1:
+                korz.append("Пепперони")
+            if num==2:
+                korz.append("Барбекю")
+            if num==3:
+                korz.append("Дары моря")
+        except ValueError:
+            pass
+        finally:
+            view_menu()
+    lbl = label(window, 'Введите номер пиццы', 3, 1)
+    not_menu_labels.append(lbl)
+    num = entry_widget(window, 3, 2, 8)
+    not_menu_labels.append(num)
+    btn=click_button(window, "Добавить", 3, 4, lambda: add(num.get()))
+    not_menu_labels.append(btn)
+
+def view_menu():  # функция для просмотра меню
+    for widget in window.winfo_children():
+        widget.destroy()
+    click_button(window, 'Меню',0, 2, menu)
+    click_button(window, 'Выход', 0, 1, exit)
+    click_button(window, 'Заказ', 0, 3, zakaz)
+    click_button(window, 'Оплата', 0, 5, oplata)
+    click_button(window, 'Корзина', 0, 4, korzina)
+
+
+class Terminal:
+    otmena = -1
+    ok = 0
+    def process(self, com):  # функция обработки команд
+        if com == '-1' or com == '0' or com == '1' or com == '2' or com == '3':
+            com = int(com)
+            if com == Terminal.otmena:
+                print("Отмена заказа")
+            elif com == Terminal.ok:
+                if len(Z.pizzainZ) > 0:
+                    print("Подтверждение заказа")
+                    Z.__str__()
+                    while True:
+                        try:
+                            T.payment()
+                            break
+                        except MyError as error:
+                            print(error.message)
+                    Z.do()
+                else:
+                    print("Отмена заказа")
+            elif 1 <= com <= 3:
+                Z.add(com)
+                print()
+        else:
+            raise MyError("Пожалуйста, введите 0, 1, 2 или 3")
+
+    def odd_money(self, oplata):  # функция выдачи сдачи
+        return oplata - Z.zsum()
+
+    def payment(self):  # функция оплаты
+        try:
+            oplata = int(input("Введите сумму:"))
+        except ValueError:
+            raise MyError("Введите корректную сумму")
+        if oplata == int(Z.zsum()):
+            print("Вы внесли ", oplata, " руб. Сдача: 0 руб.")
+        if oplata > int(Z.zsum()):
+            vernyt = (T.odd_money(int(oplata)))
+            print("Вы внесли ", oplata, "руб. Сдача: ", vernyt, " руб.")
+        if oplata < int(Z.zsum()):
+            raise MyError("Ваша сумма меньше стоимости заказа")
+
+
+T = Terminal()
+
+view_menu()
+
+window.mainloop()
